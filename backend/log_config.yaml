@@ -1,0 +1,25 @@
+version: 1
+formatters:
+  format:
+    style: "{"
+    format: "[{levelname}]: {asctime}: {name} : line {lineno} : {message}"
+    datefmt: "%d-%b-%Y %H:%M:%S"
+handlers:
+  console:
+    class: logging.StreamHandler
+    level: DEBUG
+    formatter: format
+    stream: ext://sys.stdout
+  file:
+    class: logging.FileHandler
+    level: DEBUG
+    formatter: format
+    filename: backend.log
+    mode: w
+disable_existing_loggers: false
+loggers:
+  root:
+    level: DEBUG
+    handlers: [console, file]
+  ragchat:
+    level: DEBUG

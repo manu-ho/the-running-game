@@ -1,0 +1,57 @@
+version: '3.4'
+services:
+
+  # frontend:
+  #   container_name: frontend
+  #   build:
+  #     context: .
+  #     dockerfile: ./frontend/Dockerfile
+  #   depends_on:
+  #     - backend
+  #   command: npm run preview
+  #   restart: unless-stopped
+  #   # ports:
+  #   #   - 8082:8080
+  #   networks:
+  #     - internal
+  #   environment:
+  #     VITE_BACKEND_SERVICE_URL: ${VITE_BACKEND_SERVICE_URL}
+
+  backend:
+    container_name: backend
+    build:
+      context: ./backend
+      dockerfile: Dockerfile
+    depends_on:
+      - database
+    command: uvicorn service:app --host 0.0.0.0 --root-path /api --port 8080
+    restart: unless-stopped
+    # ports:
+    #   - 8081:8080
+    networks:
+      - internal
+    environment:
+      BACKEND_DATABASE_CONNECTION_STRING: ${BACKEND_DATABASE_CONNECTION_STRING}
+
+      BACKEND_SERVICE_URL: ${BACKEND_SERVICE_URL}
+      FRONTEND_URL: ${FRONTEND_URL}
+
+  database:
+    container_name: database
+    image: postgres:16-bullseye
+    restart: unless-stopped
+    volumes:
+      - ./data/postgres:/data/postgres
+    ports:
+      - "5432:5432"
+    networks:
+      - internal
+    environment:
+      POSTGRES_USER: ${BACKEND_DATABASE_USER}
+      POSTGRES_PASSWORD: ${BACKEND_DATABASE_PASSWORD}
+      POSTGRES_DB: ${BACKEND_DATABASE_DATABASE}
+      PGDATA: /data/postgres
+
+networks:
+  internal:
+    name: internal
