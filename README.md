@@ -2,7 +2,7 @@
 
 _Invalidentreff ☕🍰_ presents **The Running Game** - an app to keep you motivated in running.
 
-[Open the app](https://therunninggame.awesomestuff.me)
+[Open the app](https://run.awesomestuff.me)
 
 ## Backend
 
