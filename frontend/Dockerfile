@@ -19,18 +19,18 @@ COPY .env.prod /.env
 # Build the React app for production
 RUN npm run build
 
-# EXPOSE 8080
+EXPOSE 8080
 
-# CMD [ "npm", "run", "preview" ]
+CMD [ "npm", "run", "preview" ]
 
-# # Use Nginx as the production server
-FROM nginx:1.25-alpine
+# # # Use Nginx as the production server
+# FROM nginx:1.25-alpine
 
-# Copy the built React app to Nginx's web server directory
-COPY --from=build /app/dist /usr/share/nginx/html
+# # Copy the built React app to Nginx's web server directory
+# COPY --from=build /app/dist /usr/share/nginx/html
 
-# Expose port 80 for the Nginx server
-EXPOSE 80
+# # Expose port 80 for the Nginx server
+# EXPOSE 80
 
-# Start Nginx when the container runs
-CMD ["nginx", "-g", "daemon off;"]
+# # Start Nginx when the container runs
+# CMD ["nginx", "-g", "daemon off;"]

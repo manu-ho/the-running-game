@@ -1,24 +1,24 @@
 version: '3.4'
 services:
 
-  # frontend:
-  #   container_name: frontend
-  #   build:
-  #     context: .
-  #     dockerfile: ./frontend/Dockerfile
-  #   depends_on:
-  #     - backend
-  #   command: npm run preview
-  #   restart: unless-stopped
-  #   # ports:
-  #   #   - 8082:8080
-  #   networks:
-  #     - internal
-  #   environment:
-  #     VITE_BACKEND_SERVICE_URL: ${VITE_BACKEND_SERVICE_URL}
+  therunninggame-frontend:
+    build:
+      context: .
+      dockerfile: ./frontend/Dockerfile
+    depends_on:
+      - therunninggame-backend
+    command: npm run preview
+    restart: unless-stopped
+    # ports:
+    #   - 8082:8080
+    networks:
+      - therunninggame
+      - service-routing
+    environment:
+      VITE_BACKEND_SERVICE_URL: ${VITE_BACKEND_SERVICE_URL}
+      VITE_SESSION_COOKIE_NAME: ${VITE_SESSION_COOKIE_NAME}
 
-  backend:
-    container_name: backend
+  therunninggame-backend:
     build:
       context: ./backend
       dockerfile: Dockerfile
@@ -29,23 +29,29 @@ services:
     # ports:
     #   - 8081:8080
     networks:
-      - internal
+      - therunninggame
+      - service-routing
     environment:
       BACKEND_DATABASE_CONNECTION_STRING: ${BACKEND_DATABASE_CONNECTION_STRING}
 
       BACKEND_SERVICE_URL: ${BACKEND_SERVICE_URL}
       FRONTEND_URL: ${FRONTEND_URL}
 
+      STRAVA_CLIENT_ID: ${STRAVA_CLIENT_ID}
+      STRAVA_CLIENT_SECRET: ${STRAVA_CLIENT_SECRET}
+
+      VITE_BACKEND_SERVICE_URL: ${VITE_BACKEND_SERVICE_URL}
+      VITE_SESSION_COOKIE_NAME: ${VITE_SESSION_COOKIE_NAME}
+
   database:
-    container_name: database
     image: postgres:16-bullseye
     restart: unless-stopped
     volumes:
       - ./data/postgres:/data/postgres
     ports:
-      - "5432:5432"
+      - "54321:5432"
     networks:
-      - internal
+      - therunninggame
     environment:
       POSTGRES_USER: ${BACKEND_DATABASE_USER}
       POSTGRES_PASSWORD: ${BACKEND_DATABASE_PASSWORD}
@@ -53,5 +59,8 @@ services:
       PGDATA: /data/postgres
 
 networks:
-  internal:
-    name: internal
+  therunninggame:
+    name: therunninggame
+  service-routing:
+    external: true
+    name: service-routing
