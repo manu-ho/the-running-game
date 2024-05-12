@@ -1,0 +1,6 @@
+{
+    "python.analysis.autoSearchPaths": false,
+    "python.analysis.extraPaths": [
+        "backend"
+    ]
+}
