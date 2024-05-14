@@ -34,8 +34,7 @@ def create_app() -> FastAPI:
 
     origins = [
         "http://localhost",
-        "http://localhost:8083",  # backend swagger docs
-        "http://localhost:5173",  # local dev vite frontend
+        "http://localhost:8080",  # local frontend
         "http://localhost:3000",  # local dev vite frontend
     ]
 
