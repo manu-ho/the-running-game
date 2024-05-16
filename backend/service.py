@@ -34,6 +34,7 @@ def create_app() -> FastAPI:
 
     origins = [
         "http://localhost",
+        "http://localhost:8083",  # local backend
         "http://localhost:8080",  # local frontend
         "http://localhost:3000",  # local dev vite frontend
     ]

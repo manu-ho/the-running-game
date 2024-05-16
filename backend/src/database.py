@@ -22,7 +22,7 @@ class Database:
 
     def create_database(self) -> None:
         # TODO use alembic for migration
-        # models.Base.metadata.drop_all(self._engine)  # FIXME: remove this line!
+        models.Base.metadata.drop_all(self._engine)  # FIXME: remove this line!
         models.Base.metadata.create_all(self._engine)
 
     @contextmanager

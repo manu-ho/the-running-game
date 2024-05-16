@@ -1,8 +1,13 @@
+from datetime import datetime
 import logging
 from contextlib import AbstractContextManager
-from typing import Callable
+from typing import Callable, List
 
-from sqlalchemy.orm import Session
+from stravalib.model import Athlete, Activity
+from stravalib.client import BatchedResultsIterator
+
+
+from sqlalchemy.orm import Session, joinedload
 from src import models
 
 logger = logging.getLogger(__name__)
@@ -20,28 +25,59 @@ class DatabaseOperations:
         access_token: str,
         expires_at: int,
         refresh_token: str,
+        user: Athlete,
     ) -> models.Session:
-        refresh_t = models.RefreshToken(refresh_token=refresh_token)
+        refresh_t = models.RefreshToken(token=refresh_token)
+        user_db = models.User(
+            **user.dict(exclude_unset=True, exclude_none=True, exclude={"id"})
+        )
         session = models.Session(
             session_id=session_id,
             access_token=access_token,
             expires_at=expires_at,
             refresh_token=refresh_t,
+            user=user_db,
         )
         with self.session_factory() as db:
             db.add(refresh_t)
+            db.add(user_db)
             db.add(session)
             db.commit()
             db.refresh(session)
             return session
 
-    def get_session_token(self, sesstion_id: str) -> models.Session:
+    def get_session(self, session_id: str) -> models.Session:
         with self.session_factory() as db:
             return (
                 db.query(models.Session)
-                .filter(models.Session.session_id == sesstion_id)
+                .filter(models.Session.session_id == session_id)
                 .first()
             )
+
+    def get_user(self, session_id: Session) -> models.User:
+        with self.session_factory() as db:
+            return (
+                db.query(models.User)
+                .options(joinedload(models.User.sessions))
+                .filter(models.Session.session_id == session_id)
+                .order_by(models.Session.time_created.desc())
+                .first()
+            )
+
+    def insert_activities(
+        self, user: models.User, activities: BatchedResultsIterator[Activity]
+    ):
+        activities_db = [
+            models.Activity(**activity.dict(), user=user) for activity in activities
+        ]
+        with self.session_factory() as session:
+            session.bulk_save_objects(activities_db)
+            session.commit()
+
+    def get_activities(
+        self, user: models.User, before: datetime, after: datetime
+    ) -> List[models.Activity]:
+        raise NotImplementedError()
 
     # def get_item(self, item_id: int) -> models.Item:
     #     with self.session_factory() as session:
