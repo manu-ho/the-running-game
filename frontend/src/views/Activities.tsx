@@ -1,4 +1,4 @@
-import { ReactNode, useState } from "react";
+import { ReactNode, useEffect, useState } from "react";
 import { CardList } from "../components/CardList";
 import { getActivities } from "../misc/getActivities";
 import ErrorToast from "../components/ErrorToast";
@@ -39,7 +39,11 @@ export function Activities({ isSignedIn }: TActivitiesProps): ReactNode {
     );
   };
 
-  if (isSignedIn && !activities) loadActivities();
+  useEffect(() => {
+    if (isSignedIn) {
+      loadActivities();
+    }
+  }, [isSignedIn]);
 
   return (
     <>

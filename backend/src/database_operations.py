@@ -1,8 +1,10 @@
 from datetime import datetime
 import logging
 from contextlib import AbstractContextManager
-from typing import Callable, List
+from typing import Callable, List, Tuple
 
+import pytz
+from sqlalchemy import func
 from stravalib.model import Athlete, Activity
 from stravalib.client import BatchedResultsIterator
 
@@ -25,12 +27,11 @@ class DatabaseOperations:
         access_token: str,
         expires_at: int,
         refresh_token: str,
-        user: Athlete,
+        athlete: Athlete,
     ) -> models.Session:
+        user_db = self.add_user_if_not_exists(athlete=athlete)
+
         refresh_t = models.RefreshToken(token=refresh_token)
-        user_db = models.User(
-            **user.dict(exclude_unset=True, exclude_none=True, exclude={"id"})
-        )
         session = models.Session(
             session_id=session_id,
             access_token=access_token,
@@ -40,11 +41,31 @@ class DatabaseOperations:
         )
         with self.session_factory() as db:
             db.add(refresh_t)
-            db.add(user_db)
             db.add(session)
             db.commit()
             db.refresh(session)
             return session
+
+    def add_user_if_not_exists(self, athlete: Athlete) -> models.User:
+        with self.session_factory() as db:
+            existing_user = (
+                db.query(models.User).filter_by(athlete_id=athlete.id).first()
+            )
+            if existing_user:
+                user_db = existing_user
+            else:
+                user_db = models.User(
+                    **athlete.dict(
+                        exclude_unset=True,
+                        exclude_none=True,
+                        exclude={"id"},
+                    ),
+                    athlete_id=athlete.id,
+                )
+                db.add(user_db)
+                db.commit()
+                db.refresh(user_db)
+        return user_db
 
     def get_session(self, session_id: str) -> models.Session:
         with self.session_factory() as db:
@@ -60,24 +81,56 @@ class DatabaseOperations:
                 db.query(models.User)
                 .options(joinedload(models.User.sessions))
                 .filter(models.Session.session_id == session_id)
-                .order_by(models.Session.time_created.desc())
                 .first()
             )
 
-    def insert_activities(
-        self, user: models.User, activities: BatchedResultsIterator[Activity]
-    ):
+    def insert_activities(self, user: models.User, activities: List[Activity]):
         activities_db = [
-            models.Activity(**activity.dict(), user=user) for activity in activities
+            models.Activity(
+                **activity.dict(exclude_unset=True, exclude_none=True, exclude={"id"}),
+                activity_id=activity.id,
+                user_id=user.id,
+            )
+            for activity in activities
         ]
-        with self.session_factory() as session:
-            session.bulk_save_objects(activities_db)
-            session.commit()
+
+        with self.session_factory() as db:
+            db.bulk_save_objects(activities_db, update_changed_only=False)
+            db.commit()
+
+    def get_activity_timerange_present(
+        self, user: models.User
+    ) -> Tuple[datetime, datetime]:
+        with self.session_factory() as db:
+            from_date = (
+                db.query(func.min(models.Activity.start_date))
+                .filter(models.Activity.user_id == user.id)
+                .scalar()
+            )
+            to_date = (
+                db.query(func.max(models.Activity.start_date))
+                .filter(models.Activity.user_id == user.id)
+                .scalar()
+            )
+        from_date = (
+            from_date.replace(tzinfo=pytz.UTC) if from_date is not None else None
+        )
+        to_date = to_date.replace(tzinfo=pytz.UTC) if to_date is not None else None
+        return from_date, to_date
 
     def get_activities(
         self, user: models.User, before: datetime, after: datetime
     ) -> List[models.Activity]:
-        raise NotImplementedError()
+        with self.session_factory() as db:
+            return (
+                db.query(models.Activity)
+                .filter(
+                    models.Activity.user_id == user.id,
+                    models.Activity.start_date > after,
+                    models.Activity.start_date < before,
+                )
+                .all()
+            )
 
     # def get_item(self, item_id: int) -> models.Item:
     #     with self.session_factory() as session:

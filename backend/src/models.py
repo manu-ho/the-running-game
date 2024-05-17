@@ -1,4 +1,14 @@
-from sqlalchemy import Column, DateTime, Enum, Float, ForeignKey, Integer, String, func
+from sqlalchemy import (
+    BigInteger,
+    Column,
+    DateTime,
+    Float,
+    ForeignKey,
+    Integer,
+    Interval,
+    String,
+    func,
+)
 from sqlalchemy.orm import DeclarativeBase, relationship, mapped_column, registry
 
 
@@ -7,7 +17,6 @@ def lenient_constructor(self, **kwargs):
     cls_ = type(self)
     for k in kwargs:
         if not hasattr(cls_, k):
-            print(f"Skipping invalid attr {k!r}")
             continue
         setattr(self, k, kwargs[k])
 
@@ -22,7 +31,7 @@ class Base(DeclarativeBase):
 class Session(Base):
     __tablename__ = "session"
 
-    id = mapped_column(Integer, primary_key=True, autoincrement=True)
+    id = Column(Integer, primary_key=True, autoincrement=True)
     time_created = Column(DateTime(timezone=True), server_default=func.now())
     time_updated = Column(DateTime(timezone=True), onupdate=func.now())
     session_id = Column(String)
@@ -39,7 +48,7 @@ class Session(Base):
 class RefreshToken(Base):
     __tablename__ = "refresh_token"
 
-    id = mapped_column(Integer, primary_key=True, autoincrement=True)
+    id = Column(Integer, primary_key=True, autoincrement=True)
     token = Column(String)
 
     sessions = relationship("Session", back_populates="refresh_token")
@@ -48,7 +57,9 @@ class RefreshToken(Base):
 class User(Base):
     __tablename__ = "user"
 
-    id = mapped_column(Integer, primary_key=True, autoincrement=True)
+    id = Column(Integer, primary_key=True, autoincrement=True)
+
+    athlete_id = Column(BigInteger)
 
     firstname = Column(String)
     lastname = Column(String)
@@ -64,12 +75,15 @@ class User(Base):
 class Activity(Base):
     __tablename__ = "activity"
 
-    id = mapped_column(Integer, primary_key=True, autoincrement=True)
+    id = Column(Integer, primary_key=True, autoincrement=True)
+
+    activity_id = Column(BigInteger)
 
     name = Column(String)
     distance = Column(Float)
-    moving_time = Column(Float)
-    description = Column(Float)
+    moving_time = Column(Interval)
+    start_date = Column(DateTime)
+    description = Column(String)
     location_city = Column(String)
 
     user_id = mapped_column(ForeignKey("user.id"))

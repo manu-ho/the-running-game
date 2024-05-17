@@ -1,6 +1,7 @@
 from datetime import datetime
 from typing import Any, List
 from pydantic import BaseModel
+import stravalib
 
 
 class LoginUrl(BaseModel):
@@ -24,3 +25,10 @@ class Athlete(BaseModel):
     country: str
     profile_medium: str
     sessions: List[Any]
+
+
+class Activity(stravalib.model.Activity):
+    class Config:
+        orm_mode = True
+
+    pass
