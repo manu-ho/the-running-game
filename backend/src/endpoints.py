@@ -17,11 +17,9 @@ from fastapi import (
     status,
 )
 from fastapi.responses import RedirectResponse
-from sqlalchemy.exc import SQLAlchemyError
 from src import schemas
 from src.data_provider import DataProvider
 from src.database.database_operations import DatabaseOperations
-from src.database.models import Session, User
 from src.dependency_container import DependencyContainer
 from src.exceptions import DatabaseException
 from src.settings import Settings
