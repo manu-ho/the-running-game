@@ -2,6 +2,7 @@ import logging
 import logging.config
 from pathlib import Path
 
+import stravalib
 import yaml
 
 

@@ -6,7 +6,6 @@ from typing import Callable, List, Tuple
 import pytz
 from sqlalchemy import func
 from stravalib.model import Athlete, Activity
-from stravalib.client import BatchedResultsIterator
 
 
 from sqlalchemy.orm import Session, joinedload

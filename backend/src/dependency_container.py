@@ -1,7 +1,7 @@
 from dependency_injector import containers, providers
 from fastapi.security import OAuth2AuthorizationCodeBearer
-from src.database import Database
-from src.database_operations import DatabaseOperations
+from src.database.database import Database
+from src.database.database_operations import DatabaseOperations
 from src.settings import get_settings
 
 
