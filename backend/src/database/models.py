@@ -1,5 +1,6 @@
 from sqlalchemy import (
     BigInteger,
+    Boolean,
     Column,
     DateTime,
     Float,
@@ -7,6 +8,8 @@ from sqlalchemy import (
     Integer,
     Interval,
     String,
+    Tuple,
+    TypeDecorator,
     func,
 )
 from sqlalchemy.orm import DeclarativeBase, relationship, mapped_column, registry
@@ -22,6 +25,36 @@ def lenient_constructor(self, **kwargs):
 
 
 default_registry = registry(constructor=lenient_constructor)
+
+
+class LatLngModelType(TypeDecorator):
+    impl = String
+
+    def process_bind_param(self, value, _):
+        if isinstance(value, list) or isinstance(value, tuple):
+            return f"{value[0]},{value[1]}"
+        raise ValueError(
+            f"Error mapping value of type {type(value)} to LatLng in database."
+        )
+
+    def process_result_value(self, value, _):
+        return tuple([float(val) for val in value.split(",")])
+
+
+class TimeStreamDataModelType(TypeDecorator):
+    impl = String
+
+    def process_bind_param(self, value, _):
+        if isinstance(value, list):
+            return ",".join(str(item) for item in value)
+        raise ValueError(
+            f"Error mapping value of type {type(value)} to TimeStreamData in database."
+        )
+
+    def process_result_value(self, value, _):
+        if value is None:
+            return value
+        return [float(val) for val in value.split(",")]
 
 
 class Base(DeclarativeBase):
@@ -75,16 +108,76 @@ class User(Base):
 class Activity(Base):
     __tablename__ = "activity"
 
-    id = Column(Integer, primary_key=True, autoincrement=True)
+    id = mapped_column(Integer, primary_key=True, autoincrement=True)
 
     activity_id = Column(BigInteger)
 
     name = Column(String)
     distance = Column(Float)
     moving_time = Column(Interval)
+    total_elevation_gain = Column(Float)
     start_date = Column(DateTime)
+    start_latlng = Column(LatLngModelType)
+    end_latlng = Column(LatLngModelType)
+    has_heartrate = Column(Boolean)
     description = Column(String)
     location_city = Column(String)
 
     user_id = mapped_column(ForeignKey("user.id"))
     user = relationship("User", back_populates="activities")
+
+    time_streams = relationship("TimeStream", back_populates="activity")
+    latlng_streams = relationship("LatLngStream", back_populates="activity")
+
+
+class TimeStream(Base):
+    __tablename__ = "time_stream"
+
+    id = mapped_column(Integer, primary_key=True, autoincrement=True)
+
+    original_size = Column(BigInteger)
+    series_type = Column(String)
+
+    data = Column(TimeStreamDataModelType)
+
+    activity_id = mapped_column(ForeignKey("activity.id"))
+    activity = relationship("Activity", back_populates="time_streams")
+
+
+class LatLngStream(Base):
+    __tablename__ = "latlng_stream"
+
+    id = mapped_column(Integer, primary_key=True, autoincrement=True)
+
+    original_size = Column(BigInteger)
+    series_type = Column(String)
+
+    # data = Column(LatLngStreamDataModelType)  # FIXME define the data type
+
+    activity_id = mapped_column(ForeignKey("activity.id"))
+    activity = relationship("Activity", back_populates="latlng_streams")
+
+
+# class Stream:
+#     id = Column(Integer, primary_key=True, autoincrement=True)
+
+#     original_size = Column(BigInteger)
+#     series_type = Column(String)
+
+
+# class TimeStream(Base, Stream):
+#     __tablename__ = "time_stream"
+
+#     data = Column(TimeStreamDataModelType)
+
+#     activity_id = mapped_column(ForeignKey("activity.id"))
+#     activity = relationship("Activity", back_populates="time_streams")
+
+
+# class LatLngStream(Base, Stream):
+#     __tablename__ = "latlng_stream"
+
+#     # data = Column(LatLngStreamDataModelType)  # FIXME define the data type
+
+#     activity_id = mapped_column(ForeignKey("activity.id"))
+#     activity = relationship("Activity", back_populates="latlng_streams")

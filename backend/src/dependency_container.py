@@ -6,7 +6,9 @@ from src.settings import get_settings
 
 
 class DependencyContainer(containers.DeclarativeContainer):
-    wiring_config = containers.WiringConfiguration(modules=["src.endpoints"])
+    wiring_config = containers.WiringConfiguration(
+        modules=["src.endpoints", "src.data_provider"]
+    )
 
     settings = providers.Singleton(get_settings)
 

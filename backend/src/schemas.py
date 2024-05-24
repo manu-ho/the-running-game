@@ -1,7 +1,6 @@
-from datetime import datetime
-from typing import Any, List
+from datetime import datetime, timedelta
+from typing import Optional, Tuple
 from pydantic import BaseModel
-import stravalib
 
 
 class LoginUrl(BaseModel):
@@ -24,11 +23,20 @@ class Athlete(BaseModel):
     city: str
     country: str
     profile_medium: str
-    sessions: List[Any]
 
 
-class Activity(stravalib.model.Activity):
+class Activity(BaseModel):
     class Config:
         orm_mode = True
 
-    pass
+    activity_id: int
+    name: str
+    distance: float
+    moving_time: timedelta
+    total_elevation_gain: float
+    start_date: datetime
+    start_latlng: Tuple[float, float]
+    end_latlng: Tuple[float, float]
+    has_heartrate: bool
+    description: Optional[str]
+    location_city: Optional[str]

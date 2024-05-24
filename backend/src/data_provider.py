@@ -64,6 +64,8 @@ class DataProvider:
         self,
         after: datetime,
         before: datetime,
+        limit: int = 100,
+        detailed: bool = False,
     ) -> list[schemas.Activity]:
         try:
             user = self.database_operations.get_user(session_id=self.session_id)
@@ -76,9 +78,10 @@ class DataProvider:
                 user=user,
                 after=after,
                 before=before,
+                limit=limit,
             )
             activities = self.database_operations.get_activities(
-                user=user, after=after, before=before
+                user=user, after=after, before=before, detailed=detailed
             )
         except SQLAlchemyError as e:
             raise DatabaseException(
@@ -93,6 +96,7 @@ class DataProvider:
         user: models.User,
         after: datetime,
         before: datetime,
+        limit: int = 100,
     ) -> None:
         after = after.replace(tzinfo=pytz.UTC)
         before = before.replace(tzinfo=pytz.UTC)
@@ -111,6 +115,7 @@ class DataProvider:
                 user=user,
                 after=after,
                 before=before,
+                limit=limit,
             )
             return
         if after < pre_loaded_activity_timerange[0]:
@@ -118,12 +123,14 @@ class DataProvider:
                 user=user,
                 after=after,
                 before=pre_loaded_activity_timerange[0],
+                limit=limit,
             )
         if pre_loaded_activity_timerange[1] < before:
             self._ingest_activities_from_strava(
                 user=user,
                 after=pre_loaded_activity_timerange[1],
                 before=before,
+                limit=limit,
             )
 
     def _ingest_activities_from_strava(
@@ -131,16 +138,21 @@ class DataProvider:
         user: models.User,
         after: datetime,
         before: datetime,
+        limit: int = 100,
     ):
         logger.info(f"Loading activity data between {after} and {before} from strava.")
         strava_client = self.get_strava_client()
         activities = [
             act
             for act in strava_client.get_activities(
-                after=after, before=before, limit=100
+                after=after, before=before, limit=limit
             )
+        ]
+        streams_of_all_activities = [
+            strava_client.get_activity_streams(act.id) for act in activities
         ]
         self.database_operations.insert_activities(
             user=user,
             activities=activities,
+            streams_of_all_activities=streams_of_all_activities,
         )

@@ -2,7 +2,6 @@ import logging
 import logging.config
 from pathlib import Path
 
-import stravalib
 import yaml
 
 
@@ -24,3 +23,9 @@ def get_backend_root_directory() -> Path:
 def get_project_root_directory() -> Path:
     """Returns the project root directory path."""
     return Path(__file__).parent.parent.parent.resolve()
+
+
+def get_all_subclasses(cls):
+    return set(cls.__subclasses__()).union(
+        [s for c in cls.__subclasses__() for s in get_all_subclasses(c)]
+    )

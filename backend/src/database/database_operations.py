@@ -1,17 +1,20 @@
-from datetime import datetime
 import logging
 from contextlib import AbstractContextManager
-from typing import Callable, List, Tuple
+from datetime import datetime
+from typing import Callable, List, Mapping, Tuple
 
 import pytz
-from sqlalchemy import func
-from stravalib.model import Athlete, Activity
-
-
-from sqlalchemy.orm import Session, joinedload
-from src import models
+import stravalib.model
+from sqlalchemy import and_, func, select
+from sqlalchemy.orm import Session, joinedload, noload
+from src.database import models
 
 logger = logging.getLogger(__name__)
+
+_stream_type_mapping = {
+    "time": models.TimeStream,
+    "latlng": models.LatLngStream,
+}
 
 
 class DatabaseOperations:
@@ -26,7 +29,7 @@ class DatabaseOperations:
         access_token: str,
         expires_at: int,
         refresh_token: str,
-        athlete: Athlete,
+        athlete: stravalib.model.Athlete,
     ) -> models.Session:
         user_db = self.add_user_if_not_exists(athlete=athlete)
 
@@ -45,7 +48,7 @@ class DatabaseOperations:
             db.refresh(session)
             return session
 
-    def add_user_if_not_exists(self, athlete: Athlete) -> models.User:
+    def add_user_if_not_exists(self, athlete: stravalib.model.Athlete) -> models.User:
         with self.session_factory() as db:
             existing_user = (
                 db.query(models.User).filter_by(athlete_id=athlete.id).first()
@@ -83,18 +86,42 @@ class DatabaseOperations:
                 .first()
             )
 
-    def insert_activities(self, user: models.User, activities: List[Activity]):
-        activities_db = [
-            models.Activity(
+    def insert_activities(
+        self,
+        user: models.User,
+        activities: List[stravalib.model.Activity],
+        streams_of_all_activities: List[Mapping[str, stravalib.model.Stream]],
+    ):
+        activities_db = []
+        streams_db = []
+        for activity, activity_streams in zip(activities, streams_of_all_activities):
+            activity_db = models.Activity(
                 **activity.dict(exclude_unset=True, exclude_none=True, exclude={"id"}),
                 activity_id=activity.id,
                 user_id=user.id,
             )
-            for activity in activities
-        ]
+            activities_db.append(activity_db)
+            for stream_key, stream in activity_streams.items():
+                stream_type = _stream_type_mapping.get(stream_key, None)
+                if stream_type is None:
+                    logger.warning(
+                        f"Could not map {stream_key} to a stream type. Skipping stream."
+                    )
+                    continue
+                streams_db.append(
+                    stream_type(
+                        **stream.dict(
+                            exclude_unset=True, exclude_none=True, exclude={"id"}
+                        ),
+                        activity_id=activity_db.id,  # FIXME the FK is always null
+                        activity=activity_db,
+                    )
+                )
 
         with self.session_factory() as db:
             db.bulk_save_objects(activities_db, update_changed_only=False)
+            db.commit()
+            db.bulk_save_objects(streams_db, update_changed_only=False)
             db.commit()
 
     def get_activity_timerange_present(
@@ -118,18 +145,32 @@ class DatabaseOperations:
         return from_date, to_date
 
     def get_activities(
-        self, user: models.User, before: datetime, after: datetime
+        self,
+        user: models.User,
+        before: datetime,
+        after: datetime,
+        detailed: bool = False,
     ) -> List[models.Activity]:
         with self.session_factory() as db:
-            return (
-                db.query(models.Activity)
-                .filter(
+            stmt = (
+                select(models.Activity).options(
+                    noload(models.Activity.time_streams),
+                    noload(models.Activity.latlng_streams),
+                )
+                if not detailed
+                else select(models.Activity).options(
+                    joinedload(models.Activity.time_streams),
+                    joinedload(models.Activity.latlng_streams),
+                )
+            )
+            stmt = stmt.where(
+                and_(
                     models.Activity.user_id == user.id,
                     models.Activity.start_date > after,
                     models.Activity.start_date < before,
                 )
-                .all()
             )
+            return db.execute(stmt).unique().scalars().all()
 
     # def get_item(self, item_id: int) -> models.Item:
     #     with self.session_factory() as session:

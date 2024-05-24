@@ -146,7 +146,7 @@ async def get_athlete_info(
 ) -> schemas.Athlete:
     data_provider = DataProvider(session_id=session_id)
     try:
-        user = data_provider.get_user(session_id)
+        user = data_provider.get_user()
     except DatabaseException as e:
         raise HTTPException(status_code=e.error_code, detail=str(e))
     return schemas.Athlete.from_orm(user)
@@ -158,6 +158,8 @@ async def get_activities(
     session_id: Annotated[str, Cookie(alias="therunninggame_sessionid")],
     after: datetime | None = None,
     before: datetime | None = None,
+    limit: int = 100,
+    detailed: bool = False,
 ) -> list[schemas.Activity]:
     if after is None:
         after = datetime.now() - timedelta(weeks=4)
@@ -175,7 +177,9 @@ async def get_activities(
     data_provider = DataProvider(session_id=session_id)
 
     try:
-        activities = data_provider.get_activities(after=after, before=before)
+        activities = data_provider.get_activities(
+            after=after, before=before, limit=limit, detailed=detailed
+        )
     except DatabaseException as e:
         raise HTTPException(status_code=e.error_code, detail=str(e))
 
